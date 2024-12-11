@@ -1,3 +1,5 @@
+#![deny(clippy::todo, clippy::unwrap_used)]
+
 use std::collections::HashMap;
 
 use small_iter_fields::{
@@ -6,16 +8,11 @@ use small_iter_fields::{
 
 use rand::Rng;
 
-#[derive(Debug, IterFields, HashFields, Hash, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, IterFields, HashFields, Hash, PartialEq, Eq, Clone)]
 enum Player {
+    #[default]
     Crosses,
     Noughts,
-}
-
-impl Default for Player {
-    fn default() -> Self {
-        Player::Crosses
-    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -85,35 +82,37 @@ fn main() {
     let mut players = Players::default();
 
     let mut player_order = Player::iter_fields().collect::<Vec<_>>().into_iter().cycle();
-    let current_player = player_order.next().unwrap();
+    let current_player = player_order.next().expect("Player enum empty");
 
-    while (*wins.get(&Player::default()).unwrap() as f64 / round as f64) < WIN_RATE / 100.0 {
+    while (*wins.get(&Player::default()).expect("Error in `to_hashmap` in `small_iter_fields`") as f64 / round as f64) < WIN_RATE / 100.0 {
         if let Some(winner_player) = current_state.win(WIN_CONDITION) {
             for (player, sequence) in players.players {
                 let increment = WEIGHT_INCREMENT * if player == winner_player { 1.0 } else { -1.0 };
 
                 for (state, (m, n)) in &sequence.sequence {
-                    let weighted_state = weighted_states.find_mut(&state);
+                    let weighted_state = weighted_states.find_mut(state);
                     weighted_state.weights[*m][*n] += increment;
                 }
             }
-            *wins.get_mut(&winner_player).unwrap() += 1;
+            *wins.get_mut(&winner_player).expect("Error in `to_hashmap` in `small_iter_fields`") += 1;
             round += 1;
 
             current_state = State::default();
             players = Players::default();
         }
-        let sequence = players.players.get_mut(&current_player).unwrap();
+        let sequence = players.players.get_mut(&current_player).expect("Error in `to_hashmap` in `small_iter_fields`");
         let current_weighted_state = weighted_states.find_mut(&current_state);
         let normalised_weights = current_weighted_state.normalise_weights();
 
         let mut rand = rand::thread_rng();
         let random_number: f64 = rand.gen();
         let index = normalised_weights.into_iter().rev().enumerate().find_map(|(index, weight)| {
-            if weight <= random_number { return Some(index) } else { None }
+            if weight <= random_number { Some(index) } else { None }
         }).unwrap_or(0);
         let (m, n) = (index % N, index / N);
         sequence.sequence.push((current_state.clone(), (m, n)));
         current_state.state[m][n].replace(current_player.clone());
     }
+
+    println!("Wins: {wins:?}");
 }
