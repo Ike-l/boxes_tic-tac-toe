@@ -20,6 +20,7 @@ impl<const M: usize, const N: usize> Default for State<M, N> {
 }
 
 impl<const M: usize, const N: usize> State<M, N> {
+    #[allow(dead_code)]
     pub fn new(state: [[Option<Player>; N]; M]) -> Self {
         Self {
             state

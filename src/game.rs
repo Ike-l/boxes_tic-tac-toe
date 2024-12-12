@@ -1,6 +1,6 @@
 use rand::Rng;
 
-use crate::{finished_game::FinishedGame, players::{Player, Players}, state::State, weighted_state::{self, WeightedStates}};
+use crate::{finished_game::FinishedGame, players::{Player, Players}, state::State, weighted_state::WeightedStates};
 
 pub struct Game<const M: usize, const N: usize> {
     current_state: State<M, N>,
@@ -69,7 +69,6 @@ impl<const M: usize, const N: usize> Game<M, N> {
 
     fn play(&mut self, weighted_states: &mut WeightedStates<M, N>) {
         let current_weighted_state = weighted_states.find_mut(&self.current_state).unwrap();
-
         let normalised_cumulative_weights = current_weighted_state.normalised_cumulative_weights();
         let (m, n) = Self::determine_move(normalised_cumulative_weights, &self.current_state);
         self.current_state.state[m][n] = Some(self.current_player.clone());
