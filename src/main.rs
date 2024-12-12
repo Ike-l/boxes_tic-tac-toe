@@ -18,7 +18,7 @@ fn main() {
     let mut weighted_states = WeightedStates::<3, 3>::default();
     let mut games_stats = GamesStats::new();
 
-    while games_stats.win_rate(&Player::default()) < expected_win_rate / 100.0 && games_stats.rounds < 20000 {
+    while games_stats.win_rate(&Player::default()) < expected_win_rate / 100.0 && games_stats.rounds < 1000000 {
         let game = Game::default();
         let finished_game = game.play_until_finish(win_condition, &mut weighted_states);
         games_stats.update(&finished_game);
@@ -39,5 +39,9 @@ fn main() {
     }
 
     println!("Games Stats: {games_stats:?}");
-    
+
+    loop {
+        let game = Game::default();
+        game.play_versus_ai(win_condition, &mut weighted_states);
+    }
 }

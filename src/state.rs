@@ -1,7 +1,8 @@
 use crate::players::Player;
 
 enum Direction {
-    Diagonal,
+    DiagonalRight,
+    DiagonalLeft,
     Horizontal,
     Perpendicular
 }
@@ -36,17 +37,18 @@ impl<const M: usize, const N: usize> State<M, N> {
     }
 
     pub fn winner(&self, win_condition: usize) -> Option<Player> {
-        let mut dfs_diag_clone = self.clone();
+        let mut dfs_diag_right_clone = self.clone();
+        let mut dfs_diag_left_clone = self.clone();
         let mut dfs_horiz_clone = self.clone();
         let mut dfs_perp_clone = self.clone();
         for n in 0..N {
             for m in 0..M {
                 if let Some(target_player) = self.get(m, n) {
-                    let diagonal_length = dfs_diag_clone.directional_backtracking(target_player, m, n, &Direction::Diagonal);
+                    let diagonal_right_length = dfs_diag_right_clone.directional_backtracking(target_player, m, n, &Direction::DiagonalRight);
+                    let diagonal_left_length = dfs_diag_left_clone.directional_backtracking(target_player, m, n, &Direction::DiagonalLeft);
                     let horizontal_length = dfs_horiz_clone.directional_backtracking(target_player, m, n, &Direction::Horizontal);
                     let perpendocular_length = dfs_perp_clone.directional_backtracking(target_player, m, n, &Direction::Perpendicular);
-
-                    if diagonal_length >= win_condition || horizontal_length >= win_condition || perpendocular_length >= win_condition {
+                    if diagonal_right_length >= win_condition || diagonal_left_length >= win_condition || horizontal_length >= win_condition || perpendocular_length >= win_condition {
                         return Some(target_player.clone());
                     }
                 }
@@ -60,24 +62,44 @@ impl<const M: usize, const N: usize> State<M, N> {
         if let Some(player) = self.get(m, n) {
             if player == target_player {
                 self.state[m][n].take();
-                let (m_p, m_n, n_p, n_n) = match direction {
-                    Direction::Diagonal => {
-                        (1, 1, 1, 1)
+                1 + match direction {
+                    Direction::DiagonalRight => {
+                        let mut sum = 0;
+                        if m != 0 && n != 0 {
+                            sum += self.directional_backtracking(target_player, m - 1, n - 1, direction);
+                        }
+                        sum += self.directional_backtracking(target_player, m + 1, n + 1, direction);
+                        
+                        sum
                     },
+                    Direction::DiagonalLeft => {
+                        let mut sum = 0;
+                        if m != 0 {
+                            sum += self.directional_backtracking(target_player, m - 1, n + 1, direction);
+                        }
+                        if n != 0 {
+                            sum += self.directional_backtracking(target_player, m + 1, n - 1, direction);
+                        }
+
+                        sum
+                    }
                     Direction::Horizontal => {
-                        (1, 1, 0, 0)
+                        let mut sum = 0;
+                        if m != 0 {
+                            sum += self.directional_backtracking(target_player, m - 1, n, direction);
+                        }
+                        sum += self.directional_backtracking(target_player, m + 1, n, direction);
+                        sum
                     },
                     Direction::Perpendicular => {
-                        (0, 0, 1, 1)
+                        let mut sum = 0;
+                        if n != 0 {
+                            sum += self.directional_backtracking(target_player, m, n - 1, direction);
+                        }
+                        sum += self.directional_backtracking(target_player, m, n + 1, direction);
+                        sum
                     },
-                };
-                let m_n = if m == 0 { 0 } else { m_n };
-                let n_n = if n == 0 { 0 } else { n_n };
-                1 + 
-                self.directional_backtracking(target_player, m + m_p, n + n_p, direction) +
-                self.directional_backtracking(target_player, m + m_p, n - n_n, direction) +
-                self.directional_backtracking(target_player, m - m_n, n + n_p, direction) +
-                self.directional_backtracking(target_player, m - m_n, n - n_n, direction) 
+                }                
             } else {
                 0
             }
@@ -134,6 +156,11 @@ mod test {
                 [Some(Crosses), None, None], 
                 [Some(Noughts), None, Some(Noughts)]
             ]),
+            State::new([
+                [Some(Noughts), None, None],
+                [Some(Noughts), Some(Crosses), None],
+                [Some(Crosses), Some(Noughts), None]
+            ])
         ]  
     }
 
