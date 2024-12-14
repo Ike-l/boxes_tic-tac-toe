@@ -1,6 +1,4 @@
-use rand::Rng;
-
-use crate::{finished_game::FinishedGame, players::{Player, Players}, state::State, weighted_state::WeightedStates};
+use crate::{finished_game::FinishedGame, players::{Player, Players}, state::{Cell, State}, weighted_state::{WeightedCell, WeightedState, WeightedStates}};
 
 pub struct Game<const M: usize, const N: usize> {
     current_state: State<M, N>,
@@ -56,66 +54,74 @@ impl<const M: usize, const N: usize> Game<M, N> {
             }
 
             println!("State: {:?}", self.current_state);
-
+            
+            println!("Weights: {:?}", weighted_states.find_mut(&self.current_state));
+            
             let mut input = String::new();
+
             println!("Enter like `m n`:");
             std::io::stdin().read_line(&mut input).expect("Failed to read line");
+
             let inputs: Vec<usize> = input.trim().split_whitespace().map(|num| num.parse().expect("Please enter valid numbers")).collect();
             let (m, n) = (inputs[0], inputs[1]);
-            println!("Player overrides: {:?}, with {m} {n}", self.current_state.state[m][n]);
-            self.current_state.state[m][n] = Some(self.current_player.clone());
+
+            let was = self.play_move(m, n);
+            println!("Was: {was:?}, Now: {:?}", self.current_player);
+
             self.current_player = self.players.next();
 
             self.play(weighted_states, true);
         }  
     }
 
-    fn determine_move(weights: &Vec<f64>, state: &State<M, N>, flag: bool) -> (usize, usize) {
-        let mut rand = rand::thread_rng();  
-        
-        let mut random_number: f64 = rand.gen();
+    fn determine_move(state: &WeightedState<M, N>) -> (usize, usize) {
+        let mut index = (0, 0);
+        let mut max = core::f64::MIN;
 
-        let index = weights.iter().enumerate().find_map(|(index, weight)| {
-            if &random_number < weight { Some(index) } else { None }
-        }).unwrap();
+        for m in 0..M {
+            for n in 0..N {
+                if let WeightedCell::Weight(w) = state.state[m][n] {
+                    if w > max {
+                        max = w;
 
-        let (mut m, mut n) = (index % N, index / N);
-
-        while state.get(m, n).is_some() {
-            random_number = rand.gen();
-
-            let index = weights.iter().enumerate().find_map(|(index, weight)| {
-                if &random_number < weight { Some(index) } else { None }
-            }).unwrap();
-
-            (m, n) = (index % N, index / N);
+                        index = (m, n)
+                    }
+                }
+            }
         }
-
-        if flag {
-            println!("Random number: {random_number:?}");
-        }   
-
-        return (m, n);
+ 
+        return index;
     }
 
-    fn play(&mut self, weighted_states: &mut WeightedStates<M, N>, flag: bool) {
-        let current_weighted_state = weighted_states.find_mut(&self.current_state).unwrap();
-        let normalised_cumulative_weights = current_weighted_state.normalised_cumulative_weights();
-        let (m, n) = Self::determine_move(&normalised_cumulative_weights, &self.current_state, flag);
-        if flag {
-            println!("Weights: {:?}", current_weighted_state.weights);
-            println!("Cum Weights: {:?}", normalised_cumulative_weights);
+    pub fn play_move(&mut self, m: usize, n: usize) -> Option<Cell> {
+        self.current_state.state[m][n].replace(Cell::Player(self.current_player))
+    }
+
+    fn play(&mut self, weighted_states: &mut WeightedStates<M, N>, debug_flag: bool) {
+        let current_weighted_state = match weighted_states.find_mut(&self.current_state) {
+            Some(s) => s,
+            // would mean the bot has never encountered this position
+            // (can be avoided by storing every position instead of building it up as i go)
+            None => panic!("Weighted States: {weighted_states:?}\nLength: {:?}", weighted_states.states.len())
+        };
+
+        let (m, n) = Self::determine_move(&current_weighted_state);
+
+        if debug_flag {
+            println!("Weights: {:?}", current_weighted_state.state);
             println!("AI played: {m} {n}");
         }
-        self.current_state.state[m][n] = Some(self.current_player.clone());
-        
 
         let sequence = self.players.players.get_mut(&self.current_player).unwrap();
         sequence.sequence.push((self.current_state.clone(), (m, n)));
 
-        let mut next_weighted_state = current_weighted_state.clone();
-        next_weighted_state.state.state[m][n] = Some(self.current_player);
-        if weighted_states.find_mut(&next_weighted_state.state).is_none() {
+        self.play_move(m, n);
+        
+
+        let mut next_weighted_state: WeightedState<M, N> = current_weighted_state.clone();
+        next_weighted_state.state[m][n] = WeightedCell::Cell(Cell::Player(self.current_player));
+        if weighted_states.find_mut(&next_weighted_state.just_state()).is_none() {
+            next_weighted_state.clear_weights();
             weighted_states.states.push(next_weighted_state)
         }
 

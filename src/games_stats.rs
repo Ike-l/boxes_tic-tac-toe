@@ -9,15 +9,18 @@ pub struct GamesStats {
     pub rounds: u64,
 }
 
-impl GamesStats {
-    pub fn new() -> Self {
+impl Default for GamesStats {
+    fn default() -> Self {
         Self {
             wins: Player::to_hashmap(0),
             draws: 0,
             rounds: 1,
         }
     }
+}
 
+impl GamesStats {
+    #[allow(dead_code)]
     pub fn win_rate(&self, player: &Player) -> f64 {
         *self.wins.get(player).unwrap() as f64 / self.rounds as f64
     }

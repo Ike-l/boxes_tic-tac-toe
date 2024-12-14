@@ -7,9 +7,22 @@ enum Direction {
     Perpendicular
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Cell {
+    Player(Player),
+}
+
+impl Cell {
+    pub fn unwrap(self) -> Player {
+        match self {
+            Cell::Player(p) => p
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct State<const M: usize, const N: usize> {
-    pub state: [[Option<Player>; N]; M]
+    pub state: [[Option<Cell>; N]; M]
 }
 
 impl<const M: usize, const N: usize> Default for State<M, N> {
@@ -22,13 +35,13 @@ impl<const M: usize, const N: usize> Default for State<M, N> {
 
 impl<const M: usize, const N: usize> State<M, N> {
     #[allow(dead_code)]
-    pub fn new(state: [[Option<Player>; N]; M]) -> Self {
+    pub fn new(state: [[Option<Cell>; N]; M]) -> Self {
         Self {
             state
         }
     }
 
-    pub fn get(&self, m: usize, n: usize) -> &Option<Player> {
+    pub fn get(&self, m: usize, n: usize) -> &Option<Cell> {
         self.state.get(m).and_then(|ms| ms.get(n)).unwrap_or(&None)
     }
 
@@ -44,6 +57,7 @@ impl<const M: usize, const N: usize> State<M, N> {
         for n in 0..N {
             for m in 0..M {
                 if let Some(target_player) = self.get(m, n) {
+                    let target_player = &target_player.unwrap();
                     let diagonal_right_length = dfs_diag_right_clone.directional_backtracking(target_player, m, n, &Direction::DiagonalRight);
                     let diagonal_left_length = dfs_diag_left_clone.directional_backtracking(target_player, m, n, &Direction::DiagonalLeft);
                     let horizontal_length = dfs_horiz_clone.directional_backtracking(target_player, m, n, &Direction::Horizontal);
@@ -60,6 +74,7 @@ impl<const M: usize, const N: usize> State<M, N> {
 
     fn directional_backtracking(&mut self, target_player: &Player, m: usize, n: usize, direction: &Direction) -> usize {
         if let Some(player) = self.get(m, n) {
+            let player = &player.unwrap();
             if player == target_player {
                 self.state[m][n].take();
                 1 + match direction {
@@ -113,61 +128,65 @@ impl<const M: usize, const N: usize> State<M, N> {
 mod test {
     use super::*;
 
-    use Player::{Crosses, Noughts};
-
     const M: usize = 3;
     const N: usize = 3;
     const WIN_CONDITION: usize = 3;
 
     fn winning_states() -> Vec<State<M, N>> {
+        let c = Cell::Player(Player::Crosses);
+        let n = Cell::Player(Player::Noughts);
         vec![
             State::new([
-                [Some(Crosses), None, None], 
-                [Some(Noughts), Some(Crosses), None], 
-                [None, Some(Noughts), Some(Crosses)]
+                [Some(c.clone()), None, None], 
+                [Some(n.clone()), Some(c.clone()), None], 
+                [None, Some(n.clone()), Some(c.clone())]
             ]),
             State::new([
-                [Some(Crosses), Some(Noughts), None], 
-                [Some(Crosses), None, Some(Noughts)], 
-                [Some(Crosses), None, None]
+                [Some(c.clone()), Some(n.clone()), None], 
+                [Some(c.clone()), None, Some(n.clone())], 
+                [Some(c.clone()), None, None]
             ]),
             State::new([
-                [Some(Crosses), None, Some(Crosses)], 
-                [Some(Crosses), None, None], 
-                [Some(Noughts), Some(Noughts), Some(Noughts)]
+                [Some(c.clone()), None, Some(c.clone())], 
+                [Some(c.clone()), None, None], 
+                [Some(n.clone()), Some(n.clone()), Some(n.clone())]
             ]),
         ]
     }
 
     fn playable_states() -> Vec<State<M, N>> {
+        let c = Cell::Player(Player::Crosses);
+        let n = Cell::Player(Player::Noughts);
         vec![
             State::new([
-                [Some(Crosses), None, None], 
-                [Some(Noughts), None, None], 
-                [None, Some(Noughts), Some(Crosses)]
+                [Some(c.clone()), None, None], 
+                [Some(n.clone()), None, None], 
+                [None, Some(n.clone()), Some(c.clone())]
             ]),
             State::new([
-                [Some(Crosses), Some(Noughts), None], 
-                [None, None, Some(Noughts)], 
-                [Some(Crosses), None, None]
+                [Some(c.clone()), Some(n.clone()), None], 
+                [None, None, Some(n.clone())], 
+                [Some(c.clone()), None, None]
             ]),
             State::new([
-                [Some(Crosses), None, Some(Crosses)], 
-                [Some(Crosses), None, None], 
-                [Some(Noughts), None, Some(Noughts)]
+                [Some(c.clone()), None, Some(c.clone())], 
+                [Some(c.clone()), None, None], 
+                [Some(n.clone()), None, Some(n.clone())]
             ]),
             State::new([
-                [Some(Noughts), None, None],
-                [Some(Noughts), Some(Crosses), None],
-                [Some(Crosses), Some(Noughts), None]
+                [Some(n.clone()), None, None],
+                [Some(n.clone()), Some(c.clone()), None],
+                [Some(c.clone()), Some(n.clone()), None]
             ])
         ]  
     }
 
     fn unplayable_states() -> Vec<State<M, N>> {
+        let c = Cell::Player(Player::Crosses);
+        let n = Cell::Player(Player::Noughts);
         vec![
-            State::new([[Some(Crosses); N]; M]),
-            State::new([[Some(Noughts); N]; M])
+            State::new([[Some(c.clone()); N]; M]),
+            State::new([[Some(n.clone()); N]; M])
         ]  
     }
 
