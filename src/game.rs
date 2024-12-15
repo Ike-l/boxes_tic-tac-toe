@@ -1,3 +1,5 @@
+use rand::Rng;
+
 use crate::{finished_game::FinishedGame, players::{Player, Players}, state::{Cell, State}, weighted_state::{WeightedCell, WeightedState, WeightedStates}};
 
 pub struct Game<const M: usize, const N: usize> {
@@ -74,6 +76,16 @@ impl<const M: usize, const N: usize> Game<M, N> {
         }  
     }
 
+    fn random_move(state: &WeightedState<M, N>) -> (usize, usize) {
+        let (mut m, mut n) = (0, 0);
+        while state.just_state().get(m, n).is_some() {
+            m = rand::thread_rng().gen_range(0..M);
+            n = rand::thread_rng().gen_range(0..N);   
+        }
+
+        (m, n)
+    }
+
     fn determine_move(state: &WeightedState<M, N>) -> (usize, usize) {
         let mut index = (0, 0);
         let mut max = core::f64::MIN;
@@ -102,10 +114,15 @@ impl<const M: usize, const N: usize> Game<M, N> {
             Some(s) => s,
             // would mean the bot has never encountered this position
             // (can be avoided by storing every position instead of building it up as i go)
-            None => panic!("Weighted States: {weighted_states:?}\nLength: {:?}", weighted_states.states.len())
+            //None => panic!("Weighted States: {weighted_states:?}\nLength: {:?}", weighted_states.states.len())
+            None => panic!("Length: {:?}", weighted_states.states.len())
         };
 
-        let (m, n) = Self::determine_move(&current_weighted_state);
+        let (m, n) = if rand::random::<f64>() < 0.9 {
+            Self::random_move(&current_weighted_state)
+        } else {
+            Self::determine_move(&current_weighted_state)
+        };
 
         if debug_flag {
             println!("Weights: {:?}", current_weighted_state.state);
