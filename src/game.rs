@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::{rngs::ThreadRng, Rng};
 
 use crate::{finished_game::FinishedGame, players::{Player, Players}, state::{Cell, State}, weighted_state::{WeightedCell, WeightedState, WeightedStates}};
 
@@ -6,6 +6,7 @@ pub struct Game<const M: usize, const N: usize> {
     current_state: State<M, N>,
     current_player: Player,
     players: Players<M, N>,
+    rng: ThreadRng,
 }
 
 impl<const M: usize, const N: usize> Default for Game<M, N> {
@@ -15,6 +16,7 @@ impl<const M: usize, const N: usize> Default for Game<M, N> {
             current_state: State::default(),
             current_player: players.next(),
             players,
+            rng: rand::thread_rng(),
         }
         
     }
@@ -64,7 +66,7 @@ impl<const M: usize, const N: usize> Game<M, N> {
             println!("Enter like `m n`:");
             std::io::stdin().read_line(&mut input).expect("Failed to read line");
 
-            let inputs: Vec<usize> = input.trim().split_whitespace().map(|num| num.parse().expect("Please enter valid numbers")).collect();
+            let inputs: Vec<usize> = input.split_whitespace().map(|num| num.parse().expect("Please enter valid numbers")).collect();
             let (m, n) = (inputs[0], inputs[1]);
 
             let was = self.play_move(m, n);
@@ -76,33 +78,38 @@ impl<const M: usize, const N: usize> Game<M, N> {
         }  
     }
 
-    fn random_move(state: &WeightedState<M, N>) -> (usize, usize) {
-        let (mut m, mut n) = (0, 0);
-        while state.just_state().get(m, n).is_some() {
-            m = rand::thread_rng().gen_range(0..M);
-            n = rand::thread_rng().gen_range(0..N);   
-        }
-
-        (m, n)
-    }
-
-    fn determine_move(state: &WeightedState<M, N>) -> (usize, usize) {
-        let mut index = (0, 0);
-        let mut max = core::f64::MIN;
+    fn determine_move(rng: &mut ThreadRng, state: &WeightedState<M, N>) -> (usize, usize) {
+        let mut bucket = vec![];
 
         for m in 0..M {
             for n in 0..N {
                 if let WeightedCell::Weight(w) = state.state[m][n] {
-                    if w > max {
-                        max = w;
-
-                        index = (m, n)
+                    for _ in 0..w {
+                        bucket.push((m, n));
                     }
                 }
             }
         }
  
-        return index;
+        let state = state.just_state();
+        match bucket.len() {
+            0 => {
+                let mut index = (rng.gen_range(0..M), rng.gen_range(0..N));
+                while state.get(index.0, index.1).is_some() {
+                    index = (rng.gen_range(0..M), rng.gen_range(0..N));
+                }
+        
+                index
+            }
+            l => {
+                let mut index = *bucket.get(rng.gen_range(0..l)).unwrap();
+                while state.get(index.0, index.1).is_some() {
+                    index = *bucket.get(rng.gen_range(0..l)).unwrap();
+                }
+        
+                index
+            }
+        }
     }
 
     pub fn play_move(&mut self, m: usize, n: usize) -> Option<Cell> {
@@ -118,11 +125,7 @@ impl<const M: usize, const N: usize> Game<M, N> {
             None => panic!("Length: {:?}", weighted_states.states.len())
         };
 
-        let (m, n) = if rand::random::<f64>() < 0.9 {
-            Self::random_move(&current_weighted_state)
-        } else {
-            Self::determine_move(&current_weighted_state)
-        };
+        let (m, n) = Self::determine_move(&mut self.rng, current_weighted_state);
 
         if debug_flag {
             println!("Weights: {:?}", current_weighted_state.state);
@@ -134,7 +137,6 @@ impl<const M: usize, const N: usize> Game<M, N> {
 
         self.play_move(m, n);
         
-
         let mut next_weighted_state: WeightedState<M, N> = current_weighted_state.clone();
         next_weighted_state.state[m][n] = WeightedCell::Cell(Cell::Player(self.current_player));
         if weighted_states.find_mut(&next_weighted_state.just_state()).is_none() {

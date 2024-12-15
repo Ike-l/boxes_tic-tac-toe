@@ -3,12 +3,12 @@ use crate::state::{Cell, State};
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum WeightedCell {
     Cell(Cell),
-    Weight(f64)
+    Weight(isize)
 }
 
 impl Default for WeightedCell {
     fn default() -> Self {
-        Self::Weight(1.0)
+        Self::Weight(1)
     }
 }
 
@@ -25,29 +25,11 @@ impl<const M: usize, const N: usize> Default for WeightedState<M, N> {
 }
 
 impl<const M: usize, const N: usize> WeightedState<M, N> {
-    pub fn normalise_weights(&mut self) {
-        let total: f64 = self.state.iter().flatten().map(|cell| match cell {
-            WeightedCell::Weight(w) => *w,
-            _ => 0.0,
-        }).sum();
-
-        for m in 0..M {
-            for n in 0..N {
-                if let WeightedCell::Weight(w) = &mut self.state[m][n] {
-                    *w /= total;
-                }
-            }
-        }
-    }
-
     pub fn clear_weights(&mut self) {
         for m in 0..M {
             for n in 0..N {
-                match self.state[m][n] {
-                    WeightedCell::Weight(_) => {
-                        self.state[m][n] = WeightedCell::default()
-                    },
-                    _ => {}
+                if let WeightedCell::Weight(_) = self.state[m][n] {
+                    self.state[m][n] = WeightedCell::default()
                 }
             }
         }
@@ -78,6 +60,7 @@ impl<const M: usize, const N: usize> Default for WeightedStates<M, N> {
         }
     }
 }
+
 
 impl<const M: usize, const N: usize> WeightedStates<M, N> {
     pub fn find_mut(&mut self, state: &State<M, N>) -> Option<&mut WeightedState<M, N>> {

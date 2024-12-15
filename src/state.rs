@@ -63,7 +63,7 @@ impl<const M: usize, const N: usize> State<M, N> {
                     let horizontal_length = dfs_horiz_clone.directional_backtracking(target_player, m, n, &Direction::Horizontal);
                     let perpendocular_length = dfs_perp_clone.directional_backtracking(target_player, m, n, &Direction::Perpendicular);
                     if diagonal_right_length >= win_condition || diagonal_left_length >= win_condition || horizontal_length >= win_condition || perpendocular_length >= win_condition {
-                        return Some(target_player.clone());
+                        return Some(*target_player);
                     }
                 }
             }
